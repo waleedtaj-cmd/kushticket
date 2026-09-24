@@ -4,28 +4,24 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.ChunkingFilter;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
-import net.dv8tion.jda.api.utils.cache.CacheFlag;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        String token = System.getenv("BOT_TOKEN"); // ضع التوكن هنا
+        String token = System.getenv("BOT_TOKEN");
 
         JDABuilder builder = JDABuilder.createDefault(token);
 
-        // تفعيل النوايا وخيارات الصوت
+        // تفعيل النوايا الأساسية لإدارة التكتات والأعضاء
         builder.enableIntents(
                 GatewayIntent.GUILD_MESSAGES,
                 GatewayIntent.MESSAGE_CONTENT,
-                GatewayIntent.GUILD_MEMBERS,
-                GatewayIntent.GUILD_VOICE_STATES
+                GatewayIntent.GUILD_MEMBERS
         );
 
-        // تفعيل كاش الصوت مهم جداً
-        builder.enableCache(CacheFlag.VOICE_STATE);
         builder.setMemberCachePolicy(MemberCachePolicy.ALL);
         builder.setChunkingFilter(ChunkingFilter.ALL);
 
-        // إضافة الـ Listener
+        // إضافة الـ Listener الخاص بنظام التكتات
         builder.addEventListeners(new TicketSystem());
 
         builder.build();
