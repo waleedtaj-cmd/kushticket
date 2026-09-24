@@ -36,7 +36,7 @@
             <version>1.1.1</version>
         </dependency>
 
-        <!-- Opus Java Natives - كل الأنظمة، عشان نضمن التوافق مهما كان السيرفر شغال على إيه -->
+        <!-- Opus Java Natives -->
         <dependency>
             <groupId>club.minnced</groupId>
             <artifactId>opus-java-natives</artifactId>
@@ -77,6 +77,11 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.ticketbot.Main</mainClass>
+                                </transformer>
+                            </transformers>
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
