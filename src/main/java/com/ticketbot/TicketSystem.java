@@ -200,24 +200,32 @@ public class TicketSystem extends ListenerAdapter {
     }
 
     private void startVoiceRecording(Guild guild, VoiceChannel voiceChannel, TextChannel ticketChannel, Member reporter) {
-        AudioManager audioManager = guild.getAudioManager();
+        try {
+            AudioManager audioManager = guild.getAudioManager();
 
-        VoiceRecorderHandler recorderHandler = new VoiceRecorderHandler(voiceChannel);
-        activeRecorders.put(guild.getIdLong(), recorderHandler);
+            VoiceRecorderHandler recorderHandler = new VoiceRecorderHandler(voiceChannel);
+            activeRecorders.put(guild.getIdLong(), recorderHandler);
 
-        audioManager.setSendingHandler(new SilenceAudioHandler());
-        audioManager.setReceivingHandler(recorderHandler);
+            audioManager.setSendingHandler(new SilenceAudioHandler());
+            audioManager.setReceivingHandler(recorderHandler);
 
-        audioManager.setSelfDeafened(false);
-        audioManager.setSelfMuted(false);
+            audioManager.setSelfDeafened(false);
+            audioManager.setSelfMuted(false);
 
-        audioManager.openAudioConnection(voiceChannel);
+            audioManager.openAudioConnection(voiceChannel);
 
-        scheduler.schedule(() -> {
-            if (activeRecorders.containsKey(guild.getIdLong())) {
-                stopAndSendRecordingWithHook(guild, ticketChannel, reporter, "وصل التسجيل للحد الأقصى (10 دقائق)", null);
-            }
-        }, 10, TimeUnit.MINUTES);
+            scheduler.schedule(() -> {
+                if (activeRecorders.containsKey(guild.getIdLong())) {
+                    stopAndSendRecordingWithHook(guild, ticketChannel, reporter, "وصل التسجيل للحد الأقصى (10 دقائق)", null);
+                }
+            }, 10, TimeUnit.MINUTES);
+
+        } catch (Exception e) {
+            System.err.println("❌ خطأ أثناء بدء الاتصال الصوتي والتسجيل: " + e.getMessage());
+            e.printStackTrace();
+            activeRecorders.remove(guild.getIdLong());
+            ticketChannel.sendMessage("❌ حدث خطأ برمجى أثناء محاولة الاتصال بالروم الصوتي.").queue();
+        }
     }
 
     private void handleStopRecord(ButtonInteractionEvent event) {
