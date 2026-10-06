@@ -1,12 +1,10 @@
 # ===========================================================
 # Dockerfile متعدد المراحل لنشر KushTicket على Railway
-# يبني ويشغل Java 21 Bot + Next.js 16 في نفس الحاوية
+# يبني ويشغل Java 21 Bot + Next.js 16 في نفس الحاوية (Debian Based)
 # ===========================================================
 
 # ===== Stage 1: بناء بوت Java =====
-FROM eclipse-temurin:21-jdk-alpine AS java-builder
-
-RUN apk add --no-cache maven
+FROM maven:3.9.8-eclipse-temurin-21 AS java-builder
 
 WORKDIR /build
 
@@ -18,11 +16,11 @@ COPY src ./src
 RUN mvn -B -q clean package -DskipTests
 
 # ===== Stage 2: بناء تطبيق Next.js =====
-FROM node:20-alpine AS web-builder
+FROM node:20-slim AS web-builder
 
 WORKDIR /build
 
-# نسخ ملفات الـ Next.js جعل package-lock.json اختيارياً
+# نسخ ملفات الـ Next.js
 COPY package.json ./
 COPY package-lock.jso[n] ./
 COPY next.config.ts tsconfig.json ./
@@ -45,16 +43,21 @@ RUN npm install
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# ===== Stage 3: حاوية التشغيل النهائية =====
-FROM eclipse-temurin:21-jre-alpine AS runtime
+# ===== Stage 3: حاوية التشغيل النهائية (دعم النيتف والصوت) =====
+FROM eclipse-temurin:21-jre-noble AS runtime
 
-# تثبيت Node.js 20 + bash + curl + tini
-RUN apk add --no-cache \
-    bash \
+# تثبيت Node.js 20 + الحزم النيتف ومكتبات الصوت (glibc + libopus)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    nodejs \
-    npm \
-    tini
+    bash \
+    tini \
+    libopus0 \
+    libopus-dev \
+    build-essential \
+    ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -87,5 +90,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
     CMD curl -fsS http://localhost:3000/api/health >/dev/null || exit 1
 
-ENTRYPOINT ["/sbin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/app/start.sh"]
