@@ -19,6 +19,27 @@
         <main.class>com.ticketbot.Main</main.class>
     </properties>
 
+    <!-- إضافة المستودعات الخارجية المسؤولة عن مكتبات الصوت و DAVE -->
+    <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+        <repository>
+            <id>m2-dv8tion</id>
+            <name>m2-dv8tion</name>
+            <url>https://m2.dv8tion.net/releases</url>
+        </repository>
+        <repository>
+            <id>jitpack</id>
+            <url>https://jitpack.io</url>
+        </repository>
+        <repository>
+            <id>topi-m32-net</id>
+            <url>https://maven.topi.m32.net/releases</url>
+        </repository>
+    </repositories>
+
     <dependencies>
         <!-- مكتبة Discord الرئيسية -->
         <dependency>
@@ -27,7 +48,7 @@
             <version>${jda.version}</version>
         </dependency>
 
-        <!-- ===== DAVE (تشفير الصوت E2EE إلزامي لدخول الرومات التسجيل) ===== -->
+        <!-- ===== DAVE (تشفير الصوت E2EE) ===== -->
         <dependency>
             <groupId>moe.kyokobot.libdave</groupId>
             <artifactId>adapter-jda</artifactId>
@@ -39,14 +60,14 @@
             <version>${libdave.version}</version>
         </dependency>
 
-        <!-- Natives: Linux (ضرورية لاستخراج مكتبات .so في Railway) -->
+        <!-- Natives: Linux (للعمل على Railway) -->
         <dependency>
             <groupId>moe.kyokobot.libdave</groupId>
             <artifactId>natives-linux-x86-64</artifactId>
             <version>${libdave.version}</version>
         </dependency>
 
-        <!-- Natives: Windows (لتشغيل وتجربة الكود على جهازك المحالي) -->
+        <!-- Natives: Windows -->
         <dependency>
             <groupId>moe.kyokobot.libdave</groupId>
             <artifactId>natives-win-x86-64</artifactId>
@@ -60,18 +81,11 @@
             <version>${libdave.version}</version>
         </dependency>
 
-        <!-- Opus Java (معالجة ترميز الصوت) -->
+        <!-- Opus Java -->
         <dependency>
             <groupId>club.minnced</groupId>
             <artifactId>opus-java</artifactId>
             <version>1.1.1</version>
-        </dependency>
-
-        <!-- Lava Common (لتحميل مكتبات السي مع النيتف بـ NativeLibraryLoader) -->
-        <dependency>
-            <groupId>com.sedmelluq</groupId>
-            <artifactId>lava-common</artifactId>
-            <version>1.1.2</version>
         </dependency>
 
         <!-- Logging -->
@@ -94,7 +108,7 @@
                 </configuration>
             </plugin>
 
-            <!-- بناء Fat JAR يحتوي على جميع المكتبات وملفات النظام الثنائية النيتف -->
+            <!-- Fat JAR plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
