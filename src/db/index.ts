@@ -1,11 +1,10 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
-const databaseUrl = process.env.DATABASE_URL;
-
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required");
-}
+// يقرأ الرابط الحقيقي من المتغيرات، وإذا لم يجده أثناء البناء يستخدم القيمة الاحتياطية
+const databaseUrl =
+  process.env.DATABASE_URL ||
+  "postgresql://postgres:postgres@localhost:5432/placeholder_db";
 
 const globalForDb = globalThis as typeof globalThis & {
   __arenaNextJsPostgresqlPool?: Pool;
