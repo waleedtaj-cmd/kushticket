@@ -1,0 +1,21 @@
+<configuration>
+    <!--
+        بدون هذا الملف + مكتبة logback-classic في pom.xml، مكتبة JDA لا تطبع أي شيء.
+        هذا سبب أن أخطاء الصوت (مثل close code 4017) لم تظهر عندك في الـ Console.
+    -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{24} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- لتتبع مشاكل الصوت بالتفصيل غيّر INFO إلى DEBUG -->
+    <logger name="net.dv8tion.jda.internal.audio" level="INFO"/>
+    <logger name="moe.kyokobot.libdave" level="INFO"/>
+    <logger name="com.ticketbot" level="INFO"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
