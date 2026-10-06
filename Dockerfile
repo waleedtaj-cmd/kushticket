@@ -22,8 +22,9 @@ FROM node:20-alpine AS web-builder
 
 WORKDIR /build
 
-# نسخ ملفات الـ Next.js
-COPY package.json package-lock.json ./
+# نسخ ملفات الـ Next.js جعل package-lock.json اختيارياً
+COPY package.json ./
+COPY package-lock.jso[n] ./
 COPY next.config.ts tsconfig.json ./
 COPY postcss.config.mjs eslint.config.mjs ./
 COPY drizzle.config.json* ./
@@ -39,7 +40,8 @@ COPY config.properties* ./kushticket-bot/
 # نسخ jar المبني من Stage 1
 COPY --from=java-builder /build/target ./kushticket-bot/target
 
-RUN npm ci
+# التثبيت عبر npm install لضمان العمل حتى بدون package-lock.json
+RUN npm install
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
