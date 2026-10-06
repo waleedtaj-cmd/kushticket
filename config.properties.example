@@ -1,0 +1,37 @@
+# انسخ هذا الملف باسم config.properties في نفس المجلد (بجانب pom.xml)
+# لا ترفع config.properties على GitHub أبدًا (فيه التوكن)
+
+# توكن البوت من Discord Developer Portal
+token=PUT_YOUR_BOT_TOKEN_HERE
+
+# ID السيرفر (لتسجيل /ticket-setup فورًا). اتركه 0 للتسجيل Global
+guild.id=0
+
+# IDs رولات الإدارة مفصولة بفاصلة. أي عضو لديه Administrator يعتبر إداري تلقائيًا
+staff.role.ids=111111111111111111,222222222222222222
+
+# ID الكاتيجوري الذي تُنشأ فيه قنوات التذاكر (0 = بدون كاتيجوري)
+ticket.category.id=0
+
+# ID قناة الأرشيف التي تُرسل لها نسخة من كل Transcript (0 = تعطيل)
+transcript.channel.id=0
+
+# المنطقة الزمنية لأوقات الـ Transcript (مثال: Asia/Riyadh, Africa/Cairo, Asia/Baghdad)
+timezone=Asia/Riyadh
+
+# بعد كم ثانية تُحذف القناة بعد "تم حل المشكلة" (-1 = لا تحذف، فقط اقفلها)
+close.delete.after.seconds=10
+
+# أقصى مدة للتسجيل الصوتي بالدقائق
+voice.max.minutes=30
+
+# ID الرول الذي يُمنح لصاحب الشكوى عند فتح تذكرة "شكوى على إداري" (0 = تعطيل)
+# هذا الرول يبقى مع العضو بعد فتح التذكرة؛ استخدمه مثلاً لتمييز المشتكين صوتيًا
+# أو لمنحهم صلاحيات خاصة داخل السيرفر.
+voice.complaint.role.id=0
+
+# أقصى حجم لتحميل مرفق واحد إلى أرشيف الـ Transcript (MB)
+transcript.max.attachment.mb=25
+
+# مجلد البيانات (tickets.json + transcripts + recordings)
+data.dir=data

@@ -1,0 +1,23 @@
+# ===========================================================
+# railway.toml — إعدادات النشر على Railway
+# https://docs.railway.app/reference/config-as-code
+# ===========================================================
+
+[build]
+# نستخدم Docker بدلاً من Nixpacks لأن المشروع يحتوي على Java + Node
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# المنفذ الذي يستمع له Next.js
+# Railway يقرأ PORT تلقائيًا من Environment Variables
+# لكن نتأكد هنا أن Railway يعرف أن الـ container يستمع على 3000
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Next.js يحتاج HOSTNAME=0.0.0.0 و PORT من Railway
+[deploy.envs]
+NODE_ENV = "production"
+HOSTNAME = "0.0.0.0"
