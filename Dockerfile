@@ -1,6 +1,6 @@
 # ===========================================================
 # Dockerfile متعدد المراحل لنشر KushTicket على Railway
-# يبني ويشغل Java 21 Bot + Next.js 16 في نفس الحاوية (Debian Based)
+# يبني ويشغل Java 21 Bot + Next.js 16 في نفس الحاوية
 # ===========================================================
 
 # ===== Stage 1: بناء بوت Java =====
@@ -43,19 +43,26 @@ RUN npm install
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# ===== Stage 3: حاوية التشغيل النهائية (دعم النيتف والصوت) =====
+# ===== Stage 3: حاوية التشغيل النهائية (دعم النيتف والصوت + Node 20) =====
 FROM eclipse-temurin:21-jre-noble AS runtime
 
-# تثبيت Node.js 20 + الحزم النيتف ومكتبات الصوت (glibc + libopus)
+# تثبيت الحزم الأساسية ومكتبات الصوت (libopus)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    gnupg \
     bash \
     tini \
     libopus0 \
     libopus-dev \
     build-essential \
     ca-certificates \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && rm -rf /var/lib/apt/lists/*
+
+# تثبيت Node.js 20 بالطريقة الحديثة لـ NodeSource
+RUN mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
