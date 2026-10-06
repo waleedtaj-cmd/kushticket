@@ -5,28 +5,34 @@
 
 set -e
 
+# تحديد المنفذ والعنوان لـ Next.js
+export PORT=${PORT:-3000}
+export HOSTNAME="0.0.0.0"
+
 echo "[KushTicket] Starting deployment..."
 echo "  JAVA_HOME: $(java -version 2>&1 | head -1)"
 echo "  Node.js: $(node -v)"
-echo "  Port: $PORT (default 3000)"
+echo "  Port: $PORT"
 
-# إنشاء مجلدات البيانات (إذا لم تكن موجودة)
+# إنشاء مجلدات البيانات والتسجيلات والتفريغ النصي
 mkdir -p /app/kushticket-bot/data
 mkdir -p /app/kushticket-bot/data/transcripts
 mkdir -p /app/kushticket-bot/data/recordings
+mkdir -p /app/public/transcripts
+mkdir -p /app/public/recordings
 
 # ===========================================================
 # 1) بدء بوت Java في الخلفية
 # ===========================================================
 echo "[KushTicket] Starting Java bot..."
-java $JAVA_OPTS -jar /app/kushticket-bot/target/kushticket-2.0.0.jar &
+(cd /app/kushticket-bot && java $JAVA_OPTS -jar target/kushticket-2.0.0.jar) &
 JAVA_PID=$!
 echo "[KushTicket] Java bot started with PID $JAVA_PID"
 
 # ===========================================================
 # 2) بدء Next.js
 # ===========================================================
-echo "[KushTicket] Starting Next.js on port ${PORT:-3000}..."
+echo "[KushTicket] Starting Next.js on port $PORT..."
 node server.js &
 NODE_PID=$!
 echo "[KushTicket] Next.js started with PID $NODE_PID"
