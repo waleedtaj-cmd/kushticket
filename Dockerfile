@@ -76,8 +76,8 @@ RUN mkdir -p /app/kushticket-bot/data \
 COPY start.sh ./start.sh
 RUN chmod +x ./start.sh
 
-# Volume لحفظ البيانات على Railway (يتم mount من railway.toml أو Railway UI)
-VOLUME /app/kushticket-bot/data
+# ملاحظة: Railway لا يدعم تعليمة VOLUME داخل Dockerfile،
+# بل يتم إضافة الـ Volume من واجهة Railway (Volumes -> Add Volume على المسار /app/kushticket-bot/data)
 
 # متغيرات افتراضية
 ENV NODE_ENV=production \
