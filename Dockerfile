@@ -69,5 +69,4 @@ RUN mkdir -p /etc/apt/keyrings \
 WORKDIR /app
 
 # نسخ بناء Next.js Standalone
-COPY --from=web-builder /build/.next/standalone ./
-COPY --from
+COPY --from=web-builder /build/.next/standalone
