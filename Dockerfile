@@ -10,7 +10,7 @@ RUN apk add --no-cache maven
 
 WORKDIR /build
 
-# نسخ ملفات البوت من المجلد الرئيسي مباشرة
+# نسخ ملفات البوت من الجذر مباشرة
 COPY pom.xml ./pom.xml
 COPY src ./src
 
@@ -26,16 +26,15 @@ WORKDIR /build
 COPY package.json package-lock.json ./
 COPY next.config.ts tsconfig.json ./
 COPY postcss.config.mjs eslint.config.mjs ./
+COPY drizzle.config.json* ./
 COPY src ./src
 COPY public* ./public/
 
-# نسخ ملفات مشروع البوت التي يحتاجها الموقع
+# نسخ ملفات مشروع البوت لتكون مجهزة لموقع الويب (كود البوت والـ ZIP)
 COPY pom.xml ./kushticket-bot/pom.xml
 COPY src ./kushticket-bot/src
-# استخدام [...] يجعل النسخ اختيارياً في حال عدم وجود الملفات
-COPY config.properties.exampl[e] ./kushticket-bot/
-COPY .gitignor[e] ./kushticket-bot/
-COPY README.m[d] ./kushticket-bot/
+COPY README.md* ./kushticket-bot/
+COPY config.properties* ./kushticket-bot/
 
 # نسخ jar المبني من Stage 1
 COPY --from=java-builder /build/target ./kushticket-bot/target
@@ -47,7 +46,7 @@ RUN npm run build
 # ===== Stage 3: حاوية التشغيل النهائية =====
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
-# تثبيت Node.js 20 + bash + curl + tini (init system)
+# تثبيت Node.js 20 + bash + curl + tini
 RUN apk add --no-cache \
     bash \
     curl \
