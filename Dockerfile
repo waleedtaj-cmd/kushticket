@@ -68,34 +68,6 @@ RUN mkdir -p /etc/apt/keyrings \
 
 WORKDIR /app
 
-# نسخ بناء Next.js
+# نسخ بناء Next.js Standalone
 COPY --from=web-builder /build/.next/standalone ./
-COPY --from=web-builder /build/.next/static ./.next/static
-COPY --from=web-builder /build/public ./public
-
-# نسخ مشروع البوت
-COPY --from=web-builder /build/kushticket-bot ./kushticket-bot
-
-# إنشاء مجلدات البيانات
-RUN mkdir -p /app/kushticket-bot/data \
-             /app/kushticket-bot/data/transcripts \
-             /app/kushticket-bot/data/recordings
-
-# نسخ script التشغيل
-COPY start.sh ./start.sh
-RUN chmod +x ./start.sh
-
-# متغيرات افتراضية
-ENV NODE_ENV=production \
-    HOSTNAME=0.0.0.0 \
-    PORT=3000 \
-    JAVA_OPTS="-Xmx512m"
-
-EXPOSE 3000
-
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-    CMD curl -fsS http://localhost:3000/api/health >/dev/null || exit 1
-
-ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["/app/start.sh"]
+COPY --from
