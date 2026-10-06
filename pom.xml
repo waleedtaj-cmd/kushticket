@@ -1,66 +1,79 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.ticketbot</groupId>
-    <artifactId>ticket-bot</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>kushticket</artifactId>
+    <version>2.0.0</version>
+    <packaging>jar</packaging>
+    <name>KushTicket</name>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <!-- Java 21 -->
+        <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!--
+            JDA 6.3.0+ هو أول إصدار يدعم بروتوكول DAVE (تشفير الصوت E2EE)
+            الذي أصبح Discord يفرضه على كل اتصالات الصوت منذ 1 مارس 2026.
+            JDA 5.x لا يدعمه => البوت يدخل الروم ثم يُطرد (close code 4017) ثم يعيد المحاولة في Loop.
+        -->
+        <jda.version>6.7.0</jda.version>
+
+        <!-- libdave-jvm: تنفيذ DAVE يعمل على Java 21 (JDAVE يحتاج Java 25) -->
+        <libdave.version>0.1.4</libdave.version>
+
+        <main.class>com.ticketbot.Main</main.class>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-    </repositories>
-
     <dependencies>
-        <!-- JDA (Java Discord API) -->
+        <!-- مكتبة Discord -->
         <dependency>
             <groupId>net.dv8tion</groupId>
             <artifactId>JDA</artifactId>
-            <version>5.0.0-beta.20</version>
+            <version>${jda.version}</version>
         </dependency>
 
-        <!-- Opus Java - الـ API -->
+        <!-- ===== DAVE (إلزامي لأي اتصال صوتي) ===== -->
         <dependency>
-            <groupId>club.minnced</groupId>
-            <artifactId>opus-java</artifactId>
-            <version>1.1.1</version>
+            <groupId>moe.kyokobot.libdave</groupId>
+            <artifactId>adapter-jda</artifactId>
+            <version>${libdave.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>moe.kyokobot.libdave</groupId>
+            <artifactId>impl-jni</artifactId>
+            <version>${libdave.version}</version>
+        </dependency>
+        <!-- Natives: Windows (Eclipse على جهازك) -->
+        <dependency>
+            <groupId>moe.kyokobot.libdave</groupId>
+            <artifactId>natives-win-x86-64</artifactId>
+            <version>${libdave.version}</version>
+        </dependency>
+        <!-- Natives: Linux (لو شغلت البوت على VPS) -->
+        <dependency>
+            <groupId>moe.kyokobot.libdave</groupId>
+            <artifactId>natives-linux-x86-64</artifactId>
+            <version>${libdave.version}</version>
+        </dependency>
+        <!-- Natives: macOS (Intel + Apple Silicon) -->
+        <dependency>
+            <groupId>moe.kyokobot.libdave</groupId>
+            <artifactId>natives-darwin</artifactId>
+            <version>${libdave.version}</version>
         </dependency>
 
-        <!-- Opus Java Natives -->
+        <!--
+            Logging: بدون هذه المكتبة JDA لا يطبع أي خطأ في الـ Console!
+            (هذا سبب أنك لم تر أي Error أثناء Loop الصوت)
+        -->
         <dependency>
-            <groupId>club.minnced</groupId>
-            <artifactId>opus-java-natives</artifactId>
-            <version>1.1.1</version>
-        </dependency>
-
-        <!-- Lavaplayer Fork -->
-        <dependency>
-            <groupId>com.github.walkyst</groupId>
-            <artifactId>lavaplayer-fork</artifactId>
-            <version>1.3.99</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <!-- SLF4J -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>2.0.9</version>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.18</version>
         </dependency>
     </dependencies>
 
@@ -68,8 +81,19 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>21</release>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- يبني ملف jar واحد فيه كل المكتبات: target/kushticket-2.0.0.jar -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>3.6.0</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -77,10 +101,12 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.ticketbot.Main</mainClass>
+                                    <mainClass>${main.class}</mainClass>
                                 </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
                             <filters>
                                 <filter>
