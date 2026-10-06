@@ -10,9 +10,9 @@ RUN apk add --no-cache maven
 
 WORKDIR /build
 
-# نسخ ملفات البوت فقط (لتسريع Docker layer cache)
-COPY kushticket-bot/pom.xml ./pom.xml
-COPY kushticket-bot/src ./src
+# نسخ ملفات البوت من المجلد الرئيسي مباشرة
+COPY pom.xml ./pom.xml
+COPY src ./src
 
 # بناء البوت (ينتج target/kushticket-2.0.0.jar)
 RUN mvn -B -q clean package -DskipTests
@@ -22,7 +22,7 @@ FROM node:20-alpine AS web-builder
 
 WORKDIR /build
 
-# نسخ ملفات الـ Next.js فقط
+# نسخ ملفات الـ Next.js
 COPY package.json package-lock.json ./
 COPY next.config.ts tsconfig.json ./
 COPY postcss.config.mjs eslint.config.mjs ./
@@ -30,13 +30,11 @@ COPY src ./src
 COPY public ./public 2>/dev/null || true
 
 # نسخ ملفات مشروع البوت التي يحتاجها الموقع (ZIP download + عرض الكود)
-# هذه تُقرأ من القرص في runtime من /app/kushticket-bot
-COPY kushticket-bot/pom.xml ./kushticket-bot/pom.xml
-COPY kushticket-bot/src ./kushticket-bot/src
-COPY kushticket-bot/src ./kushticket-bot/src
-COPY kushticket-bot/config.properties.example ./kushticket-bot/config.properties.example
-COPY kushticket-bot/.gitignore ./kushticket-bot/.gitignore
-COPY kushticket-bot/README.md ./kushticket-bot/README.md
+COPY pom.xml ./kushticket-bot/pom.xml
+COPY src ./kushticket-bot/src
+COPY config.properties.example ./kushticket-bot/config.properties.example 2>/dev/null || true
+COPY .gitignore ./kushticket-bot/.gitignore 2>/dev/null || true
+COPY README.md ./kushticket-bot/README.md 2>/dev/null || true
 
 # نسخ jar المبني من Stage 1
 COPY --from=java-builder /build/target ./kushticket-bot/target
@@ -58,13 +56,12 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
-# نسخ بناء Next.js (standalone output — لا يحتاج node_modules كامل)
+# نسخ بناء Next.js
 COPY --from=web-builder /build/.next/standalone ./
 COPY --from=web-builder /build/.next/static ./.next/static
 COPY --from=web-builder /build/public ./public
 
-# نسخ مشروع البوت (يشمل: pom.xml + src + jar المبني + README)
-# حتى يعمل /api/download ويظهر الكود في صفحة الويب
+# نسخ مشروع البوت
 COPY --from=web-builder /build/kushticket-bot ./kushticket-bot
 
 # إنشاء مجلدات البيانات
@@ -76,9 +73,6 @@ RUN mkdir -p /app/kushticket-bot/data \
 COPY start.sh ./start.sh
 RUN chmod +x ./start.sh
 
-# ملاحظة: Railway لا يدعم تعليمة VOLUME داخل Dockerfile،
-# بل يتم إضافة الـ Volume من واجهة Railway (Volumes -> Add Volume على المسار /app/kushticket-bot/data)
-
 # متغيرات افتراضية
 ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
@@ -87,10 +81,9 @@ ENV NODE_ENV=production \
 
 EXPOSE 3000
 
-# Healthcheck — Railway يتحقق من /api/health
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
     CMD curl -fsS http://localhost:3000/api/health >/dev/null || exit 1
 
-# tini يعالج SIGTERM بشكل صحيح عند إعادة تشغيل Railway
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/app/start.sh"]
