@@ -11,7 +11,6 @@
     <name>KushTicket</name>
 
     <properties>
-        <!-- Java 21 -->
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
@@ -28,7 +27,7 @@
             <version>${jda.version}</version>
         </dependency>
 
-        <!-- ===== DAVE (تشفير الصوت E2EE) ===== -->
+        <!-- ===== DAVE (تشفير الصوت E2EE إلزامي لدخول الرومات التسجيل) ===== -->
         <dependency>
             <groupId>moe.kyokobot.libdave</groupId>
             <artifactId>adapter-jda</artifactId>
@@ -40,17 +39,17 @@
             <version>${libdave.version}</version>
         </dependency>
 
-        <!-- Natives: Windows (للعمل على جهازك المحلي) -->
-        <dependency>
-            <groupId>moe.kyokobot.libdave</groupId>
-            <artifactId>natives-win-x86-64</artifactId>
-            <version>${libdave.version}</version>
-        </dependency>
-
-        <!-- Natives: Linux (ضرورية جداً للعمل على Railway/VPS) -->
+        <!-- Natives: Linux (ضرورية لاستخراج مكتبات .so في Railway) -->
         <dependency>
             <groupId>moe.kyokobot.libdave</groupId>
             <artifactId>natives-linux-x86-64</artifactId>
+            <version>${libdave.version}</version>
+        </dependency>
+
+        <!-- Natives: Windows (لتشغيل وتجربة الكود على جهازك المحالي) -->
+        <dependency>
+            <groupId>moe.kyokobot.libdave</groupId>
+            <artifactId>natives-win-x86-64</artifactId>
             <version>${libdave.version}</version>
         </dependency>
 
@@ -61,11 +60,18 @@
             <version>${libdave.version}</version>
         </dependency>
 
-        <!-- Opus Natives للصوت على Linux -->
+        <!-- Opus Java (معالجة ترميز الصوت) -->
         <dependency>
             <groupId>club.minnced</groupId>
             <artifactId>opus-java</artifactId>
             <version>1.1.1</version>
+        </dependency>
+
+        <!-- Lava Common (لتحميل مكتبات السي مع النيتف بـ NativeLibraryLoader) -->
+        <dependency>
+            <groupId>com.sedmelluq</groupId>
+            <artifactId>lava-common</artifactId>
+            <version>1.1.2</version>
         </dependency>
 
         <!-- Logging -->
@@ -88,7 +94,7 @@
                 </configuration>
             </plugin>
 
-            <!-- بناء ملف JAR مدمج حقيقي يدعم ملفات النيتف (Native Libraries) -->
+            <!-- بناء Fat JAR يحتوي على جميع المكتبات وملفات النظام الثنائية النيتف -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
