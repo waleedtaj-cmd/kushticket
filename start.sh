@@ -24,10 +24,10 @@ JAVA_PID=$!
 echo "[KushTicket] Java bot started with PID $JAVA_PID"
 
 # ===========================================================
-# 2) بدء Next.js في الواجهة (foreground)
+# 2) بدء Next.js
 # ===========================================================
 echo "[KushTicket] Starting Next.js on port ${PORT:-3000}..."
-exec node server.js &
+node server.js &
 NODE_PID=$!
 echo "[KushTicket] Next.js started with PID $NODE_PID"
 
