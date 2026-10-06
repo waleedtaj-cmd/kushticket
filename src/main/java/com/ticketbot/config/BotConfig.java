@@ -61,7 +61,13 @@ public record BotConfig(
                 .collect(Collectors.toUnmodifiableSet());
 
         String zoneId = get(props, "timezone", "");
-        ZoneId zone = zoneId.isBlank() ? ZoneId.systemDefault() : ZoneId.of(zoneId);
+ZoneId zone;
+try {
+    zone = zoneId.isBlank() ? ZoneId.systemDefault() : ZoneId.of(zoneId);
+} catch (Exception e) {
+    System.err.println("[KushTicket] Invalid timezone '" + zoneId + "', falling back to system default.");
+    zone = ZoneId.systemDefault();
+}
 
         Path dataDir = Path.of(get(props, "data.dir", "data"));
 
