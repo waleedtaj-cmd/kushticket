@@ -27,14 +27,15 @@ COPY package.json package-lock.json ./
 COPY next.config.ts tsconfig.json ./
 COPY postcss.config.mjs eslint.config.mjs ./
 COPY src ./src
-COPY public ./public 2>/dev/null || true
+COPY public* ./public/
 
-# نسخ ملفات مشروع البوت التي يحتاجها الموقع (ZIP download + عرض الكود)
+# نسخ ملفات مشروع البوت التي يحتاجها الموقع
 COPY pom.xml ./kushticket-bot/pom.xml
 COPY src ./kushticket-bot/src
-COPY config.properties.example ./kushticket-bot/config.properties.example 2>/dev/null || true
-COPY .gitignore ./kushticket-bot/.gitignore 2>/dev/null || true
-COPY README.md ./kushticket-bot/README.md 2>/dev/null || true
+# استخدام [...] يجعل النسخ اختيارياً في حال عدم وجود الملفات
+COPY config.properties.exampl[e] ./kushticket-bot/
+COPY .gitignor[e] ./kushticket-bot/
+COPY README.m[d] ./kushticket-bot/
 
 # نسخ jar المبني من Stage 1
 COPY --from=java-builder /build/target ./kushticket-bot/target
