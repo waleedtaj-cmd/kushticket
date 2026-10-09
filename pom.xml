@@ -16,6 +16,7 @@
 
         <jda.version>6.7.0</jda.version>
         <libdave.version>0.1.4</libdave.version>
+        <jackson.version>2.17.2</jackson.version>
         <main.class>com.ticketbot.Main</main.class>
     </properties>
 
@@ -46,6 +47,18 @@
             <groupId>net.dv8tion</groupId>
             <artifactId>JDA</artifactId>
             <version>${jda.version}</version>
+        </dependency>
+
+        <!-- ===== Jackson JSON Parser (إرسال الشكاوى إلى API وقاعدة البيانات) ===== -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
 
         <!-- ===== DAVE (تشفير الصوت E2EE) ===== -->
