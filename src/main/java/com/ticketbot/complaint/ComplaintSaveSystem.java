@@ -1,5 +1,8 @@
 package com.ticketbot.complaint;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.ticketbot.config.BotConfig;
 import com.ticketbot.ticket.StaffPermissions;
 import com.ticketbot.ticket.Ticket;
@@ -26,7 +29,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -38,16 +46,7 @@ import java.util.concurrent.Executors;
 
 /**
  * زر "حفظ الشكوى" (ticket_save).
- *
- * الخطوات:
- *   1) التأكد أن الضاغط إداري.
- *   2) جلب كل رسائل القناة (مع Pagination) => TranscriptCollector.
- *   3) لو لم يتغير شيء منذ آخر حفظ => لا ننشئ نسخة جديدة (منع التكرار).
- *   4) تحميل المرفقات محليًا.
- *   5) كتابة transcript.txt + transcript.html + complaint.json في:
- *        data/transcripts/<channel>-<channelId>/v001/
- *   6) تحديث بيانات التذكرة + تعديل رسالة التحكم (Edit) لتظهر "آخر حفظ".
- *   7) (اختياري) إرسال نسخة لقناة الأرشيف transcript.channel.id.
+ * تقوم هذه النسخة بحفظ الشكوى محلياً وأيضاً إرسال كائن الـ Transcript إلى قاعدة البيانات PostgreSQL عبر HTTP API.
  */
 public final class ComplaintSaveSystem extends ListenerAdapter {
 
@@ -59,17 +58,29 @@ public final class ComplaintSaveSystem extends ListenerAdapter {
     private final BotConfig config;
     private final TicketStore store;
     private final TranscriptWriter writer;
+    
+    // إعداد عميل HTTP ومحول JSON لإرسال الشكاوى لقاعدة البيانات
+    private final HttpClient httpClient;
+    private final ObjectMapper objectMapper;
 
     /** عمليات الحفظ الجارية لكل قناة. يمنع تشغيل عمليتي حفظ بنفس الوقت لنفس التذكرة. */
     private final Map<Long, CompletableFuture<SaveResult>> inFlight = new ConcurrentHashMap<>();
 
-    /** Java 21 Virtual Threads: لكتابة الملفات بدون حجز Threads الخاصة بـ JDA. */
+    /** Java 21 Virtual Threads لكتابة الملفات والاتصالات برمجياً. */
     private final ExecutorService io = Executors.newVirtualThreadPerTaskExecutor();
 
     public ComplaintSaveSystem(BotConfig config, TicketStore store) {
         this.config = config;
         this.store = store;
         this.writer = new TranscriptWriter(config.zone());
+        
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+                
+        this.objectMapper = new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     @Override
@@ -91,8 +102,6 @@ public final class ComplaintSaveSystem extends ListenerAdapter {
             return;
         }
 
-        // deferReply: الحفظ قد يأخذ أكثر من 3 ثوانٍ (حد Discord للرد على الـ Interaction).
-        // true = الرد Ephemeral (يظهر للإداري فقط) => لا رسائل إضافية في التذكرة.
         event.deferReply(true).queue();
         InteractionHook hook = event.getHook();
 
@@ -108,9 +117,8 @@ public final class ComplaintSaveSystem extends ListenerAdapter {
                         .formatted(result.version())).queue();
                 return;
             }
-            // رسالة للإداري فقط (Ephemeral) بدون إرفاق ملفات — الملفات محفوظة محليًا ويمكن الوصول إليها عبر رابط الويب.
             String text = """
-                    ✅ تم حفظ الشكوى بالكامل.
+                    ✅ تم حفظ الشكوى بالكامل وترحيلها لقاعدة البيانات.
                     • النسخة: `v%03d`
                     • عدد الرسائل: %d
                     • عدد المرفقات: %d
@@ -124,10 +132,6 @@ public final class ComplaintSaveSystem extends ListenerAdapter {
         return inFlight.containsKey(channelId);
     }
 
-    /**
-     * يحفظ التذكرة. إذا كان هناك حفظ جارٍ لنفس التذكرة، ينتظر انتهاءه ثم يبدأ (لا يعمل بالتوازي).
-     * يُستخدم من زر الحفظ ومن زر الإغلاق (حفظ تلقائي قبل حذف القناة).
-     */
     public CompletableFuture<SaveResult> saveTicket(Ticket ticket, TextChannel channel, User savedBy) {
         long key = channel.getIdLong();
         CompletableFuture<SaveResult> mine = inFlight.compute(key, (k, previous) -> previous == null
@@ -141,7 +145,6 @@ public final class ComplaintSaveSystem extends ListenerAdapter {
         return TranscriptCollector.fetchAllMessages(channel).thenCompose(messages -> {
             long newestId = messages.isEmpty() ? 0 : messages.getLast().getIdLong();
 
-            // ===== منع النسخ المكررة =====
             if (!ticket.hasChangesSinceLastSave(newestId)) {
                 return CompletableFuture.completedFuture(new SaveResult(false, ticket.savedVersion(),
                         Path.of(ticket.lastSavedPath() == null ? "" : ticket.lastSavedPath()), messages.size(), 0));
@@ -187,24 +190,68 @@ public final class ComplaintSaveSystem extends ListenerAdapter {
                         savedBy.getName(),
                         converted.join());
                 try {
+                    // 1. التخزين المحلي
                     writer.writeAll(doc, versionFolder);
-                } catch (IOException e) {
+                    
+                    // 2. إرسال البيانات مباشرة لقاعدة بيانات PostgreSQL
+                    sendToDatabaseApi(doc);
+                } catch (Exception e) {
+                    LOG.error("Failed writing or pushing transcript to DB", e);
                     throw new CompletionException(e);
                 }
 
                 ticket.markSaved(version, newestId, savedBy.getIdLong(), savedAt, versionFolder.toString());
                 store.save();
-                TicketPanel.refresh(guild, ticket); // Edit رسالة التحكم: "آخر حفظ v00X"
+                TicketPanel.refresh(guild, ticket);
                 sendToArchive(guild, ticket, doc, versionFolder);
 
-                LOG.info("Saved transcript {} v{} ({} messages) to {}", ticket.displayName(), version,
+                LOG.info("Saved transcript {} v{} ({} messages) to DB and Local Path {}", ticket.displayName(), version,
                         doc.messages().size(), versionFolder.toAbsolutePath());
                 return new SaveResult(true, version, versionFolder, doc.messages().size(), doc.attachmentCount());
             }, io);
         });
     }
 
-    /** اسم المستخدم: من الرسائل أولاً (بدون طلب API)، ثم من Discord. */
+    /**
+     * إرسال بيانات التذكرة بالكامل عبر HTTP POST للحفظ المباشر داخل PostgreSQL.
+     */
+    private void sendToDatabaseApi(TranscriptDocument doc) {
+        try {
+            String baseUrl = getBaseUrl();
+            String apiUrl = baseUrl + "/api/transcript";
+
+            String jsonPayload = objectMapper.writeValueAsString(doc);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                    .timeout(Duration.ofSeconds(15))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                LOG.info("Successfully pushed transcript {} to database via API", doc.ticketName());
+            } else {
+                LOG.error("Failed to push transcript to database API. HTTP Code: {}, Response: {}", response.statusCode(), response.body());
+            }
+        } catch (Exception e) {
+            LOG.error("Error sending transcript to DB API", e);
+        }
+    }
+
+    private String getBaseUrl() {
+        String domain = System.getenv("RAILWAY_PUBLIC_DOMAIN");
+        if (domain == null || domain.isEmpty()) {
+            domain = System.getenv("VERCEL_URL");
+        }
+        if (domain == null || domain.isEmpty()) {
+            return "https://kushticket-production.up.railway.app";
+        }
+        return domain.startsWith("http") ? domain : "https://" + domain;
+    }
+
     private static CompletableFuture<String> userName(JDA jda, long userId, List<Message> messages) {
         if (userId == 0) return CompletableFuture.completedFuture(null);
         for (Message m : messages) {
@@ -217,13 +264,6 @@ public final class ComplaintSaveSystem extends ListenerAdapter {
                 .exceptionally(err -> Long.toUnsignedString(userId));
     }
 
-    /**
-     * إرسال نسخة إلى قناة الأرشيف مع زر رابط مباشر للمتصفح.
-     *
-     * ملاحظة: لا نرفع ملفات Transcript نفسها على Discord.
-     * بدلًا من ذلك، نرسل Embed مع زر Link Button يفتح صفحة ويب تعرض الـ Transcript.
-     * الرابط يُبنى من Environment Variable (RAILWAY_PUBLIC_DOMAIN أو localhost).
-     */
     private void sendToArchive(Guild guild, Ticket ticket, TranscriptDocument doc, Path folder) {
         if (config.transcriptChannelId() == 0) return;
         TextChannel archive = guild.getTextChannelById(config.transcriptChannelId());
@@ -232,18 +272,7 @@ public final class ComplaintSaveSystem extends ListenerAdapter {
             return;
         }
 
-        // 1. جلب نطاق الاستضافة من Environment Variable (Railway / Vercel / محلي)
-        String domain = System.getenv("RAILWAY_PUBLIC_DOMAIN");
-        if (domain == null || domain.isEmpty()) {
-            domain = System.getenv("VERCEL_URL");
-        }
-        if (domain == null || domain.isEmpty()) {
-            domain = "localhost:3000";
-        }
-        // VERCEL_URL قد يأتي بدون https:// — نضيفه
-        String baseUrl = domain.startsWith("http") ? domain : "https://" + domain;
-
-        // 2. اسم مجلد التذكرة (مثل complaint-admin-0001-<channelId>) لتوليد الرابط المباشر
+        String baseUrl = getBaseUrl();
         String folderName = folder.getParent() != null ? folder.getParent().getFileName().toString() : folder.getFileName().toString();
         String webUrl = baseUrl + "/api/transcript?ticket=" + folderName + "&v=" + doc.version();
 
@@ -258,10 +287,8 @@ public final class ComplaintSaveSystem extends ListenerAdapter {
                 .setTimestamp(doc.savedAt())
                 .build();
 
-        // 3. زر تفاعلي يفتح رابط الـ Transcript في المتصفح (Link Button)
         Button viewButton = Button.link(webUrl, "عرض الشكوى 🌐");
 
-        // 4. إرسال الـ Embed + الزر إلى قناة الأرشيف
         archive.sendMessageEmbeds(embed)
                 .setComponents(ActionRow.of(viewButton))
                 .queue(null, err -> LOG.warn("Archive upload failed: {}", err.getMessage()));
