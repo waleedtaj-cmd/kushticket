@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import * as schema from "./schema"; // استدعاء الجداول من ملف schema
 
-// يقرأ الرابط من DATABASE_PUBLIC_URL أو DATABASE_URL، ويستخدم رابط Railway الخاص بك كقيمة احتياطية
 const databaseUrl =
   process.env.DATABASE_PUBLIC_URL ||
   process.env.DATABASE_URL ||
@@ -21,4 +21,5 @@ if (process.env.NODE_ENV !== "production") {
   globalForDb.__arenaNextJsPostgresqlPool = pool;
 }
 
-export const db = drizzle(pool);
+// ربط الـ Pool بالـ Schema ليتم التعرّف على الجداول تلقائياً
+export const db = drizzle(pool, { schema });
